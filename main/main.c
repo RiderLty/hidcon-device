@@ -150,16 +150,16 @@ void my_tinyusb_event_cb(tinyusb_event_t *event, void *arg)
 /* 发送 11 B 触摸报文 */
 bool ts_send_report(const uint8_t *data)
 {
-    return tud_hid_report(0, data, REPORT_LEN);
+    // return tud_hid_report(0, data, REPORT_LEN);
 
     // if (usb_ready && tud_hid_ready()) {
     //     return tud_hid_report(0, data, REPORT_LEN);
     // }
     // return false;
 
-    // while(usb_ready && tud_hid_ready()){
-    // }
-    // return tud_hid_report(0, data, REPORT_LEN);
+    while(usb_ready && tud_hid_ready()){
+    }
+    return tud_hid_report(0, data, REPORT_LEN);
 }
 
 bool ts_send_report_blocking(const uint8_t *data, uint32_t timeout_ms)
@@ -185,24 +185,32 @@ bool ts_send_report_blocking(const uint8_t *data, uint32_t timeout_ms)
 /* 串口收包任务 */
 static void uart_rx_task(void *arg)
 {
+    //======================初始化时候测试===================================
+    //双指 从坐上到右下，从右上到坐下，划线
+    // for (int i = 0 ; i< 0x7ffffffe ; i++){
+    //     int x_1 = i;
+    //     int y_1 = i;
+    //     int x_2 = 0x7ffffffe - i;
+    //     int y_2 = i;
+    //     ts_send_report((uint8_t[]){0x01,0x01,
+    //         (uint8_t)(x_1 & 0xFF), (uint8_t)((x_1 >> 8) & 0xFF), (uint8_t)((x_1 >> 16) & 0xFF), (uint8_t)((x_1 >> 24) & 0xFF),
+    //         (uint8_t)(y_1 & 0xFF), (uint8_t)((y_1 >> 8) & 0xFF), (uint8_t)((y_1 >> 16) & 0xFF), (uint8_t)((y_1 >> 24) & 0xFF),
+    //     });
+    //     ts_send_report((uint8_t[]){0x01,0x02,
+    //         (uint8_t)(x_2 & 0xFF), (uint8_t)((x_2 >> 8) & 0xFF), (uint8_t)((x_2 >> 16) & 0xFF), (uint8_t)((x_2 >> 24) & 0xFF),
+    //         (uint8_t)(y_2 & 0xFF), (uint8_t)((y_2 >> 8) & 0xFF), (uint8_t)((y_2 >> 16) & 0xFF), (uint8_t)((y_2 >> 24) & 0xFF),
+    //     });
+    // }
+    // ts_send_report((uint8_t[]){0x00,0x01,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00});
+    // ts_send_report((uint8_t[]){0x00,0x02,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x00});
+    //======================测试结束===================================
+
     uint8_t head, payload[REPORT_LEN];
     while (1) {
         if (uart_read_bytes(UART_NUM_0, &head, 1, portMAX_DELAY) == 1) {
             if (head == 0xF4) {
                 uart_read_bytes(UART_NUM_0, payload, REPORT_LEN, portMAX_DELAY);
-                if (payload[0] == 0x03) {
-                    // /* 改分辨率命令 0xF4 0x03  XL(4) YL(4)  */
-                    // uint32_t new_x = payload[1] | (payload[2] << 8)
-                    //                 | (payload[3] << 16) | (payload[4] << 24);
-                    // uint32_t new_y = payload[5] | (payload[6] << 8)
-                    //                 | (payload[7] << 16) | (payload[8] << 24);
-                    // ts_patch_resolution(new_x, new_y);
-                } else {
-                    /* 普通触摸报文 */
-                    // ts_send_report(payload);
-                    // vTaskDelay(pdMS_TO_TICKS(2));
-                    if (!ts_send_report_blocking(payload, 10)) ESP_LOGI(TAG,"DROP");
-                }
+                    ts_send_report(payload);
             }
         }
     }
